@@ -1,0 +1,4 @@
+pdf2docx
+mammoth
+xhtml2pdf
+pyinstaller
