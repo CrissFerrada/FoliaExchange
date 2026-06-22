@@ -1,9 +1,11 @@
-"""PDF -> DOCX converter that produces a clean, editable, reflowable document.
+"""PDF -> DOCX converter that produces a faithful yet editable document.
 
 Unlike pixel-perfect engines (e.g. pdf2docx) that wrap every block in absolutely
-positioned frames -- which causes blank pages and broken layouts, especially with
-two-column academic papers -- this rebuilds the text as normal flowing Word
-paragraphs in proper reading order. Optimised for papers and ordinary documents.
+positioned frames -- which causes blank pages, dozens of fake layout tables and
+broken layouts, especially with two-column academic papers -- this rebuilds the
+content as normal flowing Word paragraphs in proper reading order while still
+reconstructing real data tables (with borders), headings, bold/italic runs and
+inline images. The result looks like the original report but is fully editable.
 """
 from io import BytesIO
 import re
@@ -33,7 +35,10 @@ def convert(input_path: str, output_path: str) -> None:
         for page in pdf:
             blocks = _ordered_blocks(page, running)
             for block in blocks:
-                if block["type"] == 1:
+                kind = block.get("type")
+                if kind == "table":
+                    _add_table(doc, block["data"])
+                elif kind == 1:
                     _add_image(doc, block)
                 else:
                     _add_text_block(doc, block, body_size)
@@ -89,6 +94,39 @@ def _running_headers(pdf) -> set:
     return {sig for sig, c in counts.items() if c >= threshold}
 
 
+def _find_tables(page):
+    """Detect real tables and return them as orderable blocks with cell data."""
+    out = []
+    try:
+        finder = page.find_tables()
+    except Exception:
+        return out
+    for t in getattr(finder, "tables", []):
+        try:
+            data = t.extract()
+        except Exception:
+            continue
+        rows = [r for r in data if r and any((c or "").strip() for c in r)]
+        ncols = max((len(r) for r in data), default=0)
+        # Require a real grid (>=2 rows, >=2 cols) to skip layout artifacts.
+        if len(rows) >= 2 and ncols >= 2:
+            out.append({"type": "table", "bbox": tuple(t.bbox), "data": data})
+    return out
+
+
+def _inside(bbox, regions, frac=0.5):
+    """True if at least `frac` of bbox's area lies within any region bbox."""
+    x0, y0, x1, y1 = bbox
+    area = max(1e-6, (x1 - x0) * (y1 - y0))
+    for rx0, ry0, rx1, ry1 in regions:
+        ix0, iy0 = max(x0, rx0), max(y0, ry0)
+        ix1, iy1 = min(x1, rx1), min(y1, ry1)
+        if ix1 > ix0 and iy1 > iy0:
+            if (ix1 - ix0) * (iy1 - iy0) / area >= frac:
+                return True
+    return False
+
+
 def _ordered_blocks(page, running=frozenset()):
     """Return page blocks in reading order, dropping headers/footers.
 
@@ -99,9 +137,16 @@ def _ordered_blocks(page, running=frozenset()):
     pw, ph = rect.width, rect.height
     raw = page.get_text("dict").get("blocks", [])
 
+    # Detect real tables; their text is rebuilt as a Word table, not as
+    # flowing paragraphs, so it must be excluded from the text stream.
+    tables = _find_tables(page)
+    regions = [t["bbox"] for t in tables]
+
     blocks = []
     for b in raw:
         x0, y0, x1, y1 = b["bbox"]
+        if _inside(b["bbox"], regions):
+            continue  # belongs to a table
         if b.get("type") == 1:  # image
             blocks.append(b)
             continue
@@ -117,6 +162,8 @@ def _ordered_blocks(page, running=frozenset()):
         if in_margin and _norm_sig(text) in running:
             continue
         blocks.append(b)
+
+    blocks.extend(tables)
 
     if not blocks:
         return []
@@ -233,6 +280,31 @@ def _add_text_block(doc, block, body_size):
         run = para.add_run(text)
         run.bold = bold
         run.italic = italic
+
+
+def _add_table(doc, data):
+    """Render extracted cell data as a real, bordered, editable Word table."""
+    rows = [r for r in data if r is not None]
+    if not rows:
+        return
+    ncols = max((len(r) for r in rows), default=0)
+    if ncols == 0:
+        return
+    table = doc.add_table(rows=len(rows), cols=ncols)
+    try:
+        table.style = "Table Grid"  # visible borders
+    except Exception:
+        pass
+    for i, row in enumerate(rows):
+        for j in range(ncols):
+            val = row[j] if j < len(row) else None
+            text = "" if val is None else " ".join(str(val).split())
+            cell = table.cell(i, j)
+            cell.text = text
+            if i == 0:  # bold header row
+                for para in cell.paragraphs:
+                    for run in para.runs:
+                        run.bold = True
 
 
 def _add_image(doc, block):

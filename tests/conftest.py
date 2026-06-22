@@ -51,6 +51,26 @@ def paper_pdf(tmp_path):
 
 
 @pytest.fixture
+def table_pdf(tmp_path):
+    """A page with a ruled 3x2 grid so find_tables() detects a real table."""
+    import fitz
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)
+    cells = [["Name", "Value"], ["Alpha", "1"], ["Beta", "2"]]
+    x0, y0, cw, ch = 100, 200, 150, 30
+    for r in range(3):
+        for c in range(2):
+            rx0, ry0 = x0 + c * cw, y0 + r * ch
+            page.draw_rect(fitz.Rect(rx0, ry0, rx0 + cw, ry0 + ch),
+                           color=(0, 0, 0), width=1)
+            page.insert_text((rx0 + 5, ry0 + 20), cells[r][c], fontsize=11)
+    path = tmp_path / "table.pdf"
+    doc.save(str(path))
+    doc.close()
+    return str(path)
+
+
+@pytest.fixture
 def multi_page_pdf(tmp_path):
     """A two-page PDF to verify content flows without injected page breaks."""
     import fitz

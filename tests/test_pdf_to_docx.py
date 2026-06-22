@@ -40,6 +40,18 @@ def test_paper_layout_order(paper_pdf, tmp_path):
     assert order == sorted(order)
 
 
+def test_reconstructs_real_tables(table_pdf, tmp_path):
+    out = str(tmp_path / "output.docx")
+    convert(table_pdf, out)
+    doc = Document(out)
+    assert len(doc.tables) >= 1
+    cells = [c.text.strip() for row in doc.tables[0].rows for c in row.cells]
+    for expected in ("Name", "Value", "Alpha", "1", "Beta", "2"):
+        assert expected in cells
+    # Table text must NOT be duplicated as flowing paragraphs.
+    assert "Alpha" not in _text(out)
+
+
 def test_no_blank_pages_between_pages(multi_page_pdf, tmp_path):
     out = str(tmp_path / "output.docx")
     convert(multi_page_pdf, out)
