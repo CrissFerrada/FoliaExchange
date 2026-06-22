@@ -14,7 +14,8 @@ if %errorlevel% neq 0 (
 echo.
 echo [2/2] Construyendo FoliaExchange.exe...
 pyinstaller --onefile --windowed --name FoliaExchange ^
-  --collect-all pdf2docx ^
+  --collect-all fitz ^
+  --collect-all docx ^
   --collect-all mammoth ^
   --collect-all xhtml2pdf ^
   --hidden-import PIL ^

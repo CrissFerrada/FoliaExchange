@@ -17,6 +17,54 @@ def sample_pdf(tmp_path):
 
 
 @pytest.fixture
+def two_column_pdf(tmp_path):
+    """A page with a left and right text column to test reading order."""
+    import fitz
+    doc = fitz.open()
+    page = doc.new_page(width=612, height=792)  # Letter
+    page.insert_text((60, 100), "LEFT-1 first line of the left column.", fontsize=11)
+    page.insert_text((60, 130), "LEFT-2 second line of the left column.", fontsize=11)
+    page.insert_text((340, 100), "RIGHT-1 first line of the right column.", fontsize=11)
+    page.insert_text((340, 130), "RIGHT-2 second line of the right column.", fontsize=11)
+    path = tmp_path / "two_column.pdf"
+    doc.save(str(path))
+    doc.close()
+    return str(path)
+
+
+@pytest.fixture
+def paper_pdf(tmp_path):
+    """A paper-like page: full-width title + abstract above two columns."""
+    import fitz
+    doc = fitz.open()
+    p = doc.new_page(width=612, height=792)
+    p.insert_text((150, 70), "A Study of Document Conversion", fontsize=20)
+    p.insert_text((72, 110), "Abstract spans the full width as one block.", fontsize=11)
+    p.insert_text((60, 160), "Left A1 starts the left column here.", fontsize=11)
+    p.insert_text((60, 185), "Left A2 continues the left column.", fontsize=11)
+    p.insert_text((330, 160), "Right B1 starts the right column.", fontsize=11)
+    p.insert_text((330, 185), "Right B2 continues the right column.", fontsize=11)
+    path = tmp_path / "paper.pdf"
+    doc.save(str(path))
+    doc.close()
+    return str(path)
+
+
+@pytest.fixture
+def multi_page_pdf(tmp_path):
+    """A two-page PDF to verify content flows without injected page breaks."""
+    import fitz
+    doc = fitz.open()
+    for i in range(2):
+        page = doc.new_page(width=612, height=792)
+        page.insert_text((72, 100), f"Content on page {i + 1}.", fontsize=12)
+    path = tmp_path / "multi_page.pdf"
+    doc.save(str(path))
+    doc.close()
+    return str(path)
+
+
+@pytest.fixture
 def sample_docx(tmp_path):
     doc = Document()
     doc.add_heading("FoliaExchange Test", 0)

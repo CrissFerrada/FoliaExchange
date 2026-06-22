@@ -5,7 +5,7 @@ echo   FoliaExchange -- Actualizar
 echo  ====================================
 echo.
 echo [1/2] Descargando ultima version...
-git pull origin main
+git pull origin master
 if %errorlevel% neq 0 (
     echo ERROR: fallo en git pull.
     pause

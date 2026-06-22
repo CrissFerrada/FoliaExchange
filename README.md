@@ -4,7 +4,7 @@ Convierte entre PDF y Word (DOCX) de forma rápida y sin instalar Word ni LibreO
 
 ## Características
 
-- **PDF → DOCX** — preserva texto, tablas e imágenes
+- **PDF → DOCX** — documento limpio y editable: detecta columnas (papers), conserva títulos e imágenes y reacomoda el texto en párrafos normales (sin hojas en blanco)
 - **DOCX → PDF** — fiel al contenido original
 - Interfaz oscura y moderna
 - Diálogo "Guardar como" para elegir nombre y carpeta de destino

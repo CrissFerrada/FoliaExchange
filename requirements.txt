@@ -1,4 +1,5 @@
-pdf2docx
+pymupdf
+python-docx
 mammoth
 xhtml2pdf
 pyinstaller
